@@ -32,6 +32,7 @@ func main() {
 	title := ""
 	serverURL := ""
 	embedded := false
+	exclude := ""
 	cl.NewGeneralOption(&searchDir).SetSingle('s').SetName("search").SetArg("dir").SetUsage("The directory root to search for documentation directives")
 	cl.NewGeneralOption(&mainAPIFile).SetSingle('m').SetName("main").SetArg("file").SetUsage("The Go file to search for the main documentation directives")
 	cl.NewGeneralOption(&destDir).SetSingle('o').SetName("output").SetArg("dir").SetUsage("The destination directory to write the documentation files to")
@@ -41,25 +42,29 @@ func main() {
 	cl.NewGeneralOption(&title).SetSingle('t').SetName("title").SetArg("text").SetUsage("The title for the HTML page. If unset, defaults to the base name")
 	cl.NewGeneralOption(&serverURL).SetSingle('u').SetName("url").SetArg("url").SetUsage("An additional server URL")
 	cl.NewGeneralOption(&embedded).SetSingle('e').SetName("embedded").SetUsage("When set, embeds the spec directly in the html")
+	cl.NewGeneralOption(&exclude).SetSingle('x').SetName("exclude").SetUsage("Exclude directories and files when searching, comma separated")
 	cl.Parse(os.Args[1:])
 	if title == "" {
 		title = baseName
 	}
-	jot.FatalIfErr(generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir, maxDependencyDepth, embedded))
+	jot.FatalIfErr(generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir, exclude, maxDependencyDepth, embedded))
 	atexit.Exit(0)
 }
 
-func generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir string, maxDependencyDepth int, embedded bool) error {
+func generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir, exclude string, maxDependencyDepth int, embedded bool) error {
 	if err := os.MkdirAll(filepath.Join(destDir, apiDir), 0o755); err != nil { //nolint:gosec // Yes, I want these permissions
 		return errs.Wrap(err)
 	}
 
-	var parser *swag.Parser
-	if markdownFileDir != "" {
-		parser = swag.New(swag.SetMarkdownFileDirectory(markdownFileDir))
-	} else {
-		parser = swag.New()
+	opts := make([]func(*swag.Parser), 0)
+	if exclude != "" {
+		opts = append(opts, swag.SetExcludedDirsAndFiles(exclude))
 	}
+	if markdownFileDir != "" {
+		opts = append(opts, swag.SetMarkdownFileDirectory(markdownFileDir))
+	}
+
+	parser := swag.New(opts...)
 
 	parser.ParseDependency = true
 	parser.ParseInternal = true
