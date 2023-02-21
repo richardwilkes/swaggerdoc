@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/richardwilkes/toolbox/atexit"
 	"github.com/richardwilkes/toolbox/cmdline"
@@ -32,7 +33,7 @@ func main() {
 	title := ""
 	serverURL := ""
 	embedded := false
-	exclude := ""
+	var exclude []string
 	cl.NewGeneralOption(&searchDir).SetSingle('s').SetName("search").SetArg("dir").SetUsage("The directory root to search for documentation directives")
 	cl.NewGeneralOption(&mainAPIFile).SetSingle('m').SetName("main").SetArg("file").SetUsage("The Go file to search for the main documentation directives")
 	cl.NewGeneralOption(&destDir).SetSingle('o').SetName("output").SetArg("dir").SetUsage("The destination directory to write the documentation files to")
@@ -51,14 +52,14 @@ func main() {
 	atexit.Exit(0)
 }
 
-func generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir, exclude string, maxDependencyDepth int, embedded bool) error {
+func generate(searchDir, mainAPIFile, destDir, baseName, title, serverURL, markdownFileDir string, exclude []string, maxDependencyDepth int, embedded bool) error {
 	if err := os.MkdirAll(filepath.Join(destDir, apiDir), 0o755); err != nil { //nolint:gosec // Yes, I want these permissions
 		return errs.Wrap(err)
 	}
 
 	opts := make([]func(*swag.Parser), 0)
-	if exclude != "" {
-		opts = append(opts, swag.SetExcludedDirsAndFiles(exclude))
+	if len(exclude) != 0 {
+		opts = append(opts, swag.SetExcludedDirsAndFiles(strings.Join(exclude, ",")))
 	}
 	if markdownFileDir != "" {
 		opts = append(opts, swag.SetMarkdownFileDirectory(markdownFileDir))
