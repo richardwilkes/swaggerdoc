@@ -14,7 +14,7 @@ import (
 
 func main() {
 	cmdline.AppName = "Swagger Doc"
-	cmdline.AppVersion = "2.3.1"
+	cmdline.AppVersion = "2.3.2"
 	cmdline.CopyrightStartYear = "2019"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
 
@@ -29,6 +29,7 @@ func main() {
 	title := ""
 	serverURL := ""
 	embedded := false
+	parseGoList := false
 	var exclude []string
 	cl.NewGeneralOption(&searchDir).SetSingle('s').SetName("search").SetArg("dir").SetUsage("The directory root to search for documentation directives")
 	cl.NewGeneralOption(&mainAPIFile).SetSingle('m').SetName("main").SetArg("file").SetUsage("The Go file to search for the main documentation directives")
@@ -40,18 +41,19 @@ func main() {
 	cl.NewGeneralOption(&title).SetSingle('t').SetName("title").SetArg("text").SetUsage("The title for the HTML page. If unset, defaults to the base name")
 	cl.NewGeneralOption(&serverURL).SetSingle('u').SetName("url").SetArg("url").SetUsage("An additional server URL")
 	cl.NewGeneralOption(&embedded).SetSingle('e').SetName("embedded").SetUsage("When set, embeds the spec directly in the html")
+	cl.NewGeneralOption(&parseGoList).SetSingle('l').SetName("parsegolist").SetUsage("Parse dependencies via 'go list'")
 	cl.NewGeneralOption(&exclude).SetSingle('x').SetName("exclude").SetUsage("Exclude directories and files when searching. Example for multiple: -x file1 -x file2")
 	cl.Parse(os.Args[1:])
 	if title == "" {
 		title = baseName
 	}
-	if err := generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir, exclude, maxDependencyDepth, embedded); err != nil {
+	if err := generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir, exclude, maxDependencyDepth, embedded, parseGoList); err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
 }
 
-func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir string, exclude []string, maxDependencyDepth int, embedded bool) error {
+func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir string, exclude []string, maxDependencyDepth int, embedded, parseGoList bool) error {
 	if err := os.MkdirAll(filepath.Join(destDir, apiDir), 0o755); err != nil { //nolint:gosec // Yes, I want these permissions
 		return errs.Wrap(err)
 	}
@@ -63,6 +65,7 @@ func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverUR
 	if markdownFileDir != "" {
 		opts = append(opts, swag.SetMarkdownFileDirectory(markdownFileDir))
 	}
+	opts = append(opts, swag.ParseUsingGoList(parseGoList))
 
 	parser := swag.New(opts...)
 
