@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -65,7 +66,10 @@ func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverUR
 	if markdownFileDir != "" {
 		opts = append(opts, swag.SetMarkdownFileDirectory(markdownFileDir))
 	}
-	opts = append(opts, swag.ParseUsingGoList(!useOldMethod))
+	opts = append(opts,
+		swag.ParseUsingGoList(!useOldMethod),
+		swag.SetDebugger(&filter{out: log.New(os.Stdout, "", log.LstdFlags)}),
+	)
 
 	parser := swag.New(opts...)
 
@@ -119,4 +123,16 @@ func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverUR
 		return errs.Wrap(err)
 	}
 	return nil
+}
+
+type filter struct {
+	out *log.Logger
+}
+
+func (f *filter) Printf(format string, v ...interface{}) {
+	s := fmt.Sprintf(format, v...)
+	if strings.Contains(s, "warning: failed to evaluate const mProfCycleWrap") {
+		return
+	}
+	f.out.Println(s)
 }
