@@ -15,7 +15,7 @@ import (
 
 func main() {
 	cmdline.AppName = "Swagger Doc"
-	cmdline.AppVersion = "2.3.2"
+	cmdline.AppVersion = "2.3.4"
 	cmdline.CopyrightStartYear = "2019"
 	cmdline.CopyrightHolder = "Richard A. Wilkes"
 
