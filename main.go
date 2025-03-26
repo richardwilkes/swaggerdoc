@@ -108,7 +108,11 @@ func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverUR
 <head>
     <meta charset="utf-8">
 	<title>%s</title>
-    <script type="module" src="https://unpkg.com/rapidoc/dist/rapidoc-min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/rapidoc/9.3.8/rapidoc-min.js"
+			integrity="sha512-0ES6eX4K9J1PrIEjIizv79dTlN5HwI2GW9Ku6ymb8dijMHF5CIplkS8N0iFJ/wl3GybCSqBJu8HDhiFkZRAf0g=="
+			crossorigin="anonymous"
+			referrerpolicy="no-referrer">
+	</script>
 </head>
 <body>
 <rapi-doc id="rapidoc"
@@ -117,7 +121,8 @@ func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverUR
           schema-style="table"
           schema-description-expanded="true"%s
           allow-spec-file-download="true"%s
-></rapi-doc>%s
+>
+</rapi-doc>%s
 </body>
 </html>`, title, specURL, extra, js)), 0o644); err != nil {
 		return errs.Wrap(err)
