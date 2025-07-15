@@ -2,56 +2,95 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/richardwilkes/toolbox/cmdline"
-	"github.com/richardwilkes/toolbox/errs"
+	"github.com/richardwilkes/toolbox/v2/errs"
+	"github.com/richardwilkes/toolbox/v2/xflag"
+	"github.com/richardwilkes/toolbox/v2/xos"
 	"github.com/swaggo/swag"
 )
 
 func main() {
-	cmdline.AppName = "Swagger Doc"
-	cmdline.AppVersion = "2.3.5"
-	cmdline.CopyrightStartYear = "2019"
-	cmdline.CopyrightHolder = "Richard A. Wilkes"
+	xos.AppName = "Swagger Doc"
+	xos.AppVersion = "2.4.0"
+	xos.CopyrightStartYear = "2019"
+	xos.CopyrightHolder = "Richard A. Wilkes"
 
-	cl := cmdline.New(true)
-	apiDir := "api"
 	searchDir := "."
+	searchDesc := "The `dir`ectory to search for documentation directives"
+	flag.StringVar(&searchDir, "search", searchDir, searchDesc)
+	flag.StringVar(&searchDir, "s", searchDir, searchDesc)
+
 	mainAPIFile := "main.go"
+	mainAPIFileDesc := "The Go `file` to search for the main documentation directives"
+	flag.StringVar(&mainAPIFile, "main", mainAPIFile, mainAPIFileDesc)
+	flag.StringVar(&mainAPIFile, "m", mainAPIFile, mainAPIFileDesc)
+
 	destDir := "docs"
+	destDirDesc := "The destination `dir`ectory to write the documentation files to"
+	flag.StringVar(&destDir, "output", destDir, destDirDesc)
+	flag.StringVar(&destDir, "o", destDir, destDirDesc)
+
+	apiDir := "api"
+	apiDirDesc := "The intermediate `dir`ectory within the output directory to write the files to"
+	flag.StringVar(&apiDir, "api", apiDir, apiDirDesc)
+	flag.StringVar(&apiDir, "a", apiDir, apiDirDesc)
+
 	baseName := "swagger"
+	baseNameDesc := "The base `name` to use for the definition files"
+	flag.StringVar(&baseName, "name", baseName, baseNameDesc)
+	flag.StringVar(&baseName, "n", baseName, baseNameDesc)
+
 	maxDependencyDepth := 2
+	maxDependencyDepthDesc := "The maximum depth to resolve dependencies; use 0 for unlimited (only used if -old-method is set)"
+	flag.IntVar(&maxDependencyDepth, "depth", maxDependencyDepth, maxDependencyDepthDesc)
+	flag.IntVar(&maxDependencyDepth, "d", maxDependencyDepth, maxDependencyDepthDesc)
+
 	markdownFileDir := ""
+	markdownFileDirDesc := "The `dir`ectory to search for markdown includes"
+	flag.StringVar(&markdownFileDir, "mdincludes", markdownFileDir, markdownFileDirDesc)
+	flag.StringVar(&markdownFileDir, "i", markdownFileDir, markdownFileDirDesc)
+
 	title := ""
+	titleDesc := "The title for the HTML page. If unset, defaults to the base name"
+	flag.StringVar(&title, "title", title, titleDesc)
+	flag.StringVar(&title, "t", title, titleDesc)
+
 	serverURL := ""
+	serverURLDesc := "An additional server URL"
+	flag.StringVar(&serverURL, "url", serverURL, serverURLDesc)
+	flag.StringVar(&serverURL, "u", serverURL, serverURLDesc)
+
 	embedded := false
-	useOldMethod := false
+	embeddedDesc := "When set, embeds the spec directly in the html"
+	flag.BoolVar(&embedded, "embedded", embedded, embeddedDesc)
+	flag.BoolVar(&embedded, "e", embedded, embeddedDesc)
+
+	useOldMethod := flag.Bool("old-method", false, "Use old method for parsing dependencies")
+
 	var exclude []string
-	cl.NewGeneralOption(&searchDir).SetSingle('s').SetName("search").SetArg("dir").SetUsage("The directory root to search for documentation directives")
-	cl.NewGeneralOption(&mainAPIFile).SetSingle('m').SetName("main").SetArg("file").SetUsage("The Go file to search for the main documentation directives")
-	cl.NewGeneralOption(&destDir).SetSingle('o').SetName("output").SetArg("dir").SetUsage("The destination directory to write the documentation files to")
-	cl.NewGeneralOption(&apiDir).SetSingle('a').SetName("api").SetArg("dir").SetUsage("The intermediate directory within the output directory to write the files to")
-	cl.NewGeneralOption(&baseName).SetSingle('n').SetName("name").SetArg("name").SetUsage("The base name to use for the definition files")
-	cl.NewGeneralOption(&maxDependencyDepth).SetSingle('d').SetName("depth").SetUsage("The maximum depth to resolve dependencies; use 0 for unlimited (only used if --old-method is set)")
-	cl.NewGeneralOption(&markdownFileDir).SetSingle('i').SetName("mdincludes").SetArg("dir").SetUsage("The directory root to search for markdown includes")
-	cl.NewGeneralOption(&title).SetSingle('t').SetName("title").SetArg("text").SetUsage("The title for the HTML page. If unset, defaults to the base name")
-	cl.NewGeneralOption(&serverURL).SetSingle('u').SetName("url").SetArg("url").SetUsage("An additional server URL")
-	cl.NewGeneralOption(&embedded).SetSingle('e').SetName("embedded").SetUsage("When set, embeds the spec directly in the html")
-	cl.NewGeneralOption(&useOldMethod).SetName("old-method").SetUsage("Use old method for parsing dependencies")
-	cl.NewGeneralOption(&exclude).SetSingle('x').SetName("exclude").SetUsage("Exclude directories and files when searching. Example for multiple: -x file1 -x file2")
-	cl.Parse(os.Args[1:])
+	excludeDesc := "Exclude directories and files when searching. Example for multiple: -x file1 -x file2"
+	excludeFunc := func(in string) error {
+		exclude = append(exclude, in)
+		return nil
+	}
+	flag.Func("exclude", excludeDesc, excludeFunc)
+	flag.Func("x", excludeDesc, excludeFunc)
+
+	xflag.AddVersionFlags()
+	xflag.SetUsage(nil, "", "")
+	xflag.Parse()
 	if title == "" {
 		title = baseName
 	}
-	if err := generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir, exclude, maxDependencyDepth, embedded, useOldMethod); err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
+	xos.ExitIfErr(generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir,
+		exclude, maxDependencyDepth, embedded, *useOldMethod))
+	xos.Exit(0)
 }
 
 func generate(searchDir, mainAPIFile, destDir, apiDir, baseName, title, serverURL, markdownFileDir string, exclude []string, maxDependencyDepth int, embedded, useOldMethod bool) error {
